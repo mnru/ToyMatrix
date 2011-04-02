@@ -8,7 +8,7 @@ object MatrixField {
   type M[T] = List[R[T]]
 
 
-  import Numeric.Implicits._
+  import scala.math.Numeric
 
 
   class Matrix[T: Numeric](val elms: M[T]) {
@@ -16,23 +16,31 @@ object MatrixField {
 
     override def toString() = (this.elms map (_.mkString("[", ",", "]"))).mkString("", "\n", "\n")
 
-    def rop(rthis:R[T],rthat:R[T])(op: F[T]):R[T]=(rthis zip rthat)map (t => op(t._1,t._2)) 
-    
+
     def mop(that: Matrix[T])(op: F[T]): Matrix[T] = new Matrix[T](
-       ( this.elms zip that.elms) map (t => rop(t._1,t._2)(op(_,_)))
-      )
+      (for ((rthis, rthat) <- this.elms zip that.elms) yield
+        for ((ethis, ethat) <- rthis zip rthat) yield
+          op(ethis, ethat))
+    )
 
- 
+    ///	 def mop(that: Matrix[T])(op: F[T]): Matrix[T] = new Matrix[T](((this.elms zip that.elms).map(t => ((t._1 zip t._2)).map(s => op(s._1, s._2)))))
 
-    def +(that: Matrix[T]): Matrix[T] = this.mop(that)(_+_)
+    def +(a: T, b: T) = implicitly[Numeric[T]].plus(a, b)
 
-    def -(that: Matrix[T]): Matrix[T] = this.mop(that)(_-_)
+    def -(a: T, b: T) = implicitly[Numeric[T]].minus(a, b)
+
+    def *(a: T, b: T) = implicitly[Numeric[T]].times(a, b)
+
+
+    def +(that: Matrix[T]): Matrix[T] = this.mop(that)(this.+(_, _))
+
+    def -(that: Matrix[T]): Matrix[T] = this.mop(that)(this.-(_, _))
 
 
     def transpose = new Matrix[T](this.elms.transpose)
 
 
-    def dotProduct(a: R[T], b: R[T]): T = (rop(a,b)(_*_)).reduceLeft(_+_)
+    def dotProduct(a: R[T], b: R[T]): T = (for ((x, y) <- a zip b) yield this.*(x, y)).reduceLeft(this.+(_, _))
 
     def *(that: Matrix[T]): Matrix[T] = new Matrix[T](
       (for (rthis <- this.elms) yield
